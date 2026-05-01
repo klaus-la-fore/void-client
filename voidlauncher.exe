@@ -1,0 +1,35 @@
+#include <windows.h>
+#include <iostream>
+
+int main() {
+    const char* dllPath = "C:\\Path\\To\\VoidClient.dll";
+    STARTUPINFOA si = { sizeof(si) };
+    PROCESS_INFORMATION pi = { 0 };
+
+    // Create game process in suspended state
+    if (!CreateProcessA("javaw.exe", "-jar minecraft.jar", NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, NULL, &si, &pi)) {
+        std::cerr << "Failed to launch game." << std::endl;
+        return 1;
+    }
+
+    // Allocate memory in target process for DLL path
+    LPVOID pDllPath = VirtualAllocEx(pi.hProcess, NULL, strlen(dllPath) + 1, MEM_COMMIT, PAGE_READWRITE);
+    WriteProcessMemory(pi.hProcess, pDllPath, dllPath, strlen(dllPath) + 1, NULL);
+
+    // Inject DLL via LoadLibraryA
+    HANDLE hThread = CreateRemoteThread(pi.hProcess, NULL, 0, 
+        (LPTHREAD_START_ROUTINE)GetProcAddress(GetModuleHandleA("kernel32.dll"), "LoadLibraryA"), 
+        pDllPath, 0, NULL);
+
+    if (hThread) {
+        WaitForSingleObject(hThread, INFINITE);
+        CloseHandle(hThread);
+    }
+
+    VirtualFreeEx(pi.hProcess, pDllPath, 0, MEM_RELEASE);
+    ResumeThread(pi.hThread);
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+
+    return 0;
+}
