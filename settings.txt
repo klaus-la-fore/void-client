@@ -1,4 +1,4 @@
-version=1.12.2
+version=1.21.5
 username=TypeUsernameHere
 xmx=1200m
 xms=512m
